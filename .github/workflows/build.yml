@@ -1,0 +1,108 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            archive: codex-413-fix-windows-x64.zip
+          - os: ubuntu-latest
+            archive: codex-413-fix-linux-x64.tar.gz
+          - os: macos-15-intel
+            archive: codex-413-fix-macos-x64.zip
+          - os: macos-15
+            archive: codex-413-fix-macos-arm64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build dependency
+        run: python -m pip install --disable-pip-version-check -r requirements-build.txt
+      - name: Build standalone application
+        run: pyinstaller --clean --noconfirm codex_413_fix.spec
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path bundle/codex-413-fix -Force | Out-Null
+          Copy-Item dist/codex-413-fix.exe bundle/codex-413-fix/
+          Copy-Item README.md,LICENSE bundle/codex-413-fix/
+          Compress-Archive -Path bundle/codex-413-fix -DestinationPath ${{ matrix.archive }}
+
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p bundle/codex-413-fix
+          cp dist/codex-413-fix README.md LICENSE bundle/codex-413-fix/
+          tar -czf "${{ matrix.archive }}" -C bundle codex-413-fix
+
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          codesign --force --deep --sign - "dist/Codex 413 Fix.app"
+          mkdir -p bundle/codex-413-fix
+          cp -R "dist/Codex 413 Fix.app" bundle/codex-413-fix/
+          cp README.md LICENSE bundle/codex-413-fix/
+          ditto -c -k --sequesterRsrc --keepParent bundle/codex-413-fix "${{ matrix.archive }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: codex-413-fix-*
+          path: release-assets
+          merge-multiple: true
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* --generate-notes --title "Codex 413 Fix $GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+          fi

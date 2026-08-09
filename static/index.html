@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Codex 413 Fix</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/vendor/lucide.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand" aria-label="Codex 413 Fix">
+          <span class="brand__mark"><i data-lucide="scan-search" aria-hidden="true"></i></span>
+          <span class="brand__name">Codex 413 Fix</span>
+        </div>
+        <div class="topbar__actions">
+          <div class="local-state">
+            <span class="local-state__dot" aria-hidden="true"></span>
+            <span>仅本机</span>
+            <span class="local-state__address">127.0.0.1</span>
+          </div>
+          <button class="icon-button icon-button--topbar" data-shutdown type="button" title="退出程序" aria-label="退出程序">
+            <i data-lucide="power" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="lookup-band" aria-labelledby="lookup-title">
+        <div class="page-width lookup-band__inner">
+          <div class="lookup-heading">
+            <p class="section-index">SESSION / IMAGE ATTACHMENTS</p>
+            <h1 id="lookup-title">按对话 ID 检查图片</h1>
+          </div>
+          <form id="scan-form" class="lookup-form" novalidate>
+            <label for="thread-id">对话 ID</label>
+            <div class="lookup-form__controls">
+              <span class="input-shell">
+                <i data-lucide="hash" aria-hidden="true"></i>
+                <input
+                  id="thread-id"
+                  name="thread_id"
+                  type="text"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  inputmode="text"
+                  placeholder="019fb63c-14d7-7bf2-b4fe-fa24e22100fd"
+                  aria-describedby="thread-id-error"
+                  required
+                >
+              </span>
+              <button id="scan-button" class="button button--primary" type="submit" disabled>
+                <i data-lucide="search" aria-hidden="true"></i>
+                <span>获取图片</span>
+              </button>
+            </div>
+            <p id="thread-id-error" class="field-error" hidden></p>
+          </form>
+        </div>
+      </section>
+
+      <div class="page-width">
+        <div id="status" class="status-line" role="status" aria-live="polite" hidden>
+          <i data-status-icon data-lucide="info" aria-hidden="true"></i>
+          <span data-status-text></span>
+        </div>
+
+        <section id="operation-result" class="operation-result" aria-labelledby="operation-title" hidden>
+          <div class="operation-result__icon"><i data-lucide="badge-check" aria-hidden="true"></i></div>
+          <div class="operation-result__body">
+            <h2 id="operation-title">删除完成</h2>
+            <p data-operation-summary></p>
+            <div class="backup-line">
+              <code data-backup-path></code>
+              <button class="icon-button" data-copy-backup type="button" title="复制备份路径" aria-label="复制备份路径">
+                <i data-lucide="copy" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          <button class="icon-button operation-result__dismiss" data-dismiss-result type="button" title="关闭" aria-label="关闭删除结果">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </section>
+
+        <section id="loading-state" class="loading-state" aria-label="正在扫描" hidden>
+          <div class="loading-state__bar"></div>
+          <div class="loading-state__rows">
+            <span></span><span></span><span></span>
+          </div>
+        </section>
+
+        <section id="session-result" class="session-result" aria-labelledby="session-title" hidden>
+          <header class="session-header">
+            <div>
+              <p class="section-index">CONVERSATION</p>
+              <h2 id="session-title" data-thread-title></h2>
+            </div>
+            <span class="session-header__id" data-thread-id></span>
+          </header>
+
+          <dl class="session-paths">
+            <div>
+              <dt>工作目录</dt>
+              <dd data-thread-cwd></dd>
+            </div>
+            <div>
+              <dt>会话文件</dt>
+              <dd data-rollout-path></dd>
+            </div>
+          </dl>
+
+          <dl class="metrics" aria-label="会话图片统计">
+            <div class="metric">
+              <dt>图片</dt>
+              <dd data-metric-images>0</dd>
+              <span data-metric-sources></span>
+            </div>
+            <div class="metric">
+              <dt>图片体积</dt>
+              <dd data-metric-image-size>0 B</dd>
+              <span>解码后估算</span>
+            </div>
+            <div class="metric">
+              <dt>会话文件</dt>
+              <dd data-metric-file-size>0 B</dd>
+              <span data-metric-lines></span>
+            </div>
+            <div class="metric metric--hash">
+              <dt>文件指纹</dt>
+              <dd data-metric-hash></dd>
+              <span>删除前会再次核对</span>
+            </div>
+          </dl>
+
+          <div id="image-workspace" class="image-workspace">
+            <div class="workspace-toolbar">
+              <div class="filter-group" role="group" aria-label="图片来源筛选">
+                <button class="filter-button is-active" type="button" data-filter="all" aria-pressed="true">
+                  全部 <span data-filter-count="all">0</span>
+                </button>
+                <button class="filter-button" type="button" data-filter="user" aria-pressed="false">
+                  用户附件 <span data-filter-count="user">0</span>
+                </button>
+                <button class="filter-button" type="button" data-filter="tool" aria-pressed="false">
+                  工具截图 <span data-filter-count="tool">0</span>
+                </button>
+                <button class="filter-button" type="button" data-filter="other" aria-pressed="false">
+                  其他 <span data-filter-count="other">0</span>
+                </button>
+              </div>
+              <div class="selection-tools">
+                <button class="button button--quiet" type="button" data-select-visible>
+                  <i data-lucide="list-checks" aria-hidden="true"></i>
+                  <span>选择当前</span>
+                </button>
+                <button class="button button--quiet" type="button" data-clear-selection disabled>
+                  <i data-lucide="square" aria-hidden="true"></i>
+                  <span>清空</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="empty-state" class="empty-state" hidden>
+              <i data-lucide="image-off" aria-hidden="true"></i>
+              <h3>没有可清理的图片</h3>
+              <p>这个会话中未发现持久化的图片附件。</p>
+            </div>
+
+            <div id="filter-empty-state" class="empty-state empty-state--compact" hidden>
+              <i data-lucide="list-filter" aria-hidden="true"></i>
+              <p>当前分类没有图片。</p>
+            </div>
+
+            <div id="image-grid" class="image-grid" aria-label="会话图片"></div>
+          </div>
+
+          <div class="selection-dock" aria-label="删除选择">
+            <div class="selection-dock__summary">
+              <strong data-selected-count>未选择图片</strong>
+              <span data-selected-size>0 B</span>
+            </div>
+            <button id="delete-button" class="button button--danger" type="button" disabled>
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+              <span>删除所选</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <template id="image-card-template">
+      <article class="image-card">
+        <div class="image-card__media">
+          <button class="image-card__preview" type="button">
+            <img alt="" loading="lazy" decoding="async">
+            <span class="image-card__fallback" hidden>
+              <i data-lucide="image-off" aria-hidden="true"></i>
+              <span>预览失败</span>
+            </span>
+          </button>
+          <label class="image-card__check" title="选择图片">
+            <input type="checkbox">
+            <span><i data-lucide="check" aria-hidden="true"></i></span>
+          </label>
+          <span class="source-badge"></span>
+        </div>
+        <div class="image-card__meta">
+          <div class="image-card__primary">
+            <strong data-card-number></strong>
+            <span data-card-size></span>
+          </div>
+          <div class="image-card__secondary">
+            <span data-card-dimensions></span>
+            <span data-card-line></span>
+          </div>
+          <time data-card-time></time>
+        </div>
+      </article>
+    </template>
+
+    <dialog id="preview-dialog" class="dialog dialog--preview" aria-labelledby="preview-title">
+      <div class="dialog__header">
+        <div>
+          <p class="section-index">FULL PREVIEW</p>
+          <h2 id="preview-title">图片预览</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-preview title="关闭" aria-label="关闭预览">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="preview-stage">
+        <img data-preview-image alt="当前图片完整预览">
+      </div>
+      <div class="preview-footer">
+        <div class="preview-meta">
+          <strong data-preview-source></strong>
+          <span data-preview-details></span>
+        </div>
+        <button class="button button--secondary" type="button" data-toggle-preview-selection>
+          <i data-lucide="check-square" aria-hidden="true"></i>
+          <span>选择此图</span>
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="dialog dialog--confirm" aria-labelledby="confirm-title">
+      <div class="confirm-symbol"><i data-lucide="trash-2" aria-hidden="true"></i></div>
+      <div class="dialog__header dialog__header--confirm">
+        <div>
+          <p class="section-index section-index--danger">DESTRUCTIVE ACTION</p>
+          <h2 id="confirm-title">删除所选图片</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-confirm title="关闭" aria-label="关闭确认框">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="confirm-summary" data-confirm-summary></p>
+      <p class="confirm-backup"><i data-lucide="archive" aria-hidden="true"></i> 原会话文件会先完整备份。</p>
+      <label class="writer-check">
+        <input type="checkbox" data-writer-stopped>
+        <span class="writer-check__box"><i data-lucide="check" aria-hidden="true"></i></span>
+        <span>目标对话已经停止生成和工具调用</span>
+      </label>
+      <div class="dialog__actions">
+        <button class="button button--quiet" type="button" data-cancel-confirm>取消</button>
+        <button class="button button--danger" type="button" data-confirm-delete disabled>
+          <i data-lucide="trash-2" aria-hidden="true"></i>
+          <span>确认删除</span>
+        </button>
+      </div>
+    </dialog>
+  </body>
+</html>
