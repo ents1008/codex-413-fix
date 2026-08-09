@@ -1,3 +1,5 @@
+<img width="1745" height="1075" alt="image" src="https://github.com/user-attachments/assets/62800f3b-8f5b-4925-b358-9d9a07fc8870" />
+
 # Codex 413 Fix
 
 [![Build](https://github.com/ents1008/codex-413-fix/actions/workflows/build.yml/badge.svg)](https://github.com/ents1008/codex-413-fix/actions/workflows/build.yml)
